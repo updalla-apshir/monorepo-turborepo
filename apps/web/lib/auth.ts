@@ -23,4 +23,13 @@ export async function signUp(
     },
     body: JSON.stringify(validationFields.data),
   });
+  if (response.ok) {
+    redirect("/auth/signin");
+  }
+  return {
+    message:
+      response.status === 409
+        ? "This user Already exists"
+        : response.statusText,
+  };
 }
