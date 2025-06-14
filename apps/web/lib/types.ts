@@ -3,7 +3,7 @@ import { z } from "zod";
 export type FormState =
   | {
       error?: {
-        name?: string[];
+        name?: string;
         email?: string[];
         password?: string[];
       };
