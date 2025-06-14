@@ -16,20 +16,4 @@ export async function signUp(
       error: validationFields.error.flatten().fieldErrors,
     };
   }
-  const response = await fetch(`${BACKEND_URL}/auth/signup`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(validationFields.data),
-  });
-  if (response.ok) {
-    redirect("/auth/signin");
-  }
-  return {
-    message:
-      response.status === 409
-        ? "This user Already exists"
-        : response.statusText,
-  };
 }
