@@ -26,4 +26,10 @@ export async function signUp(
   if (response.ok) {
     redirect("/auth/signin");
   }
+  return {
+    message:
+      response.status === 409
+        ? "This user Already exists"
+        : response.statusText,
+  };
 }
