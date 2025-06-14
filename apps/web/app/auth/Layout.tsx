@@ -1,7 +1,11 @@
-import { ReactNode } from "react";
+import React, { PropsWithChildren } from "react";
 
-const Layout = ({ children }: { children: ReactNode }) => {
-  return <div className="">{children}</div>;
+const AuthLayout = ({ children }: PropsWithChildren) => {
+  return (
+    <div className="bg-gradient-to-br from-lime-400 to-cyan-400 h-screen flex items-center justify-center">
+      {children}
+    </div>
+  );
 };
 
-export default Layout;
+export default AuthLayout;
