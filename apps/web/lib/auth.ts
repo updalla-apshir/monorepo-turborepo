@@ -16,4 +16,11 @@ export async function signUp(
       error: validationFields.error.flatten().fieldErrors,
     };
   }
+  const response = await fetch(`${BACKEND_URL}/auth/signup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(validationFields.data),
+  });
 }
