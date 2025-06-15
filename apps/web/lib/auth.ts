@@ -2,7 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { BACKEND_URL } from "./constants";
-import { SignupFormSchema, FormState } from "./types";
+import { SignupFormSchema, FormState, LoginFormSchema } from "./types";
+import { error } from "console";
+import { errorToJSON } from "next/dist/server/render";
 
 export async function signUp(
   state: FormState,
@@ -37,3 +39,29 @@ export async function signUp(
           : response.statusText,
     };
 }
+
+export const signin = async (
+  formState: FormState,
+  formData: FormData
+): Promise<FormState> => {
+  const validationFields = LoginFormSchema.safeParse(formData);
+  if (!validationFields.success) {
+    return {
+      error: validationFields.error.flatten().fieldErrors,
+    };
+  }
+  const response = await fetch(`${BACKEND_URL}/auth/signin`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+  if (response.ok) {
+    const result = await response.json();
+    console.log(result);
+  }
+  return {
+    message:
+      response.status === 401 ? "invalid credentials" : response.statusText,
+  };
+};
