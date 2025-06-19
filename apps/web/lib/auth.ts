@@ -5,6 +5,7 @@ import { BACKEND_URL } from "./constants";
 import { SignupFormSchema, FormState, LoginFormSchema } from "./types";
 import { error } from "console";
 import { errorToJSON } from "next/dist/server/render";
+import { createSession } from "./session";
 
 export async function signUp(
   state: FormState,
@@ -40,28 +41,66 @@ export async function signUp(
     };
 }
 
-export const signin = async (
+export const signIn = async (
   formState: FormState,
   formData: FormData
 ): Promise<FormState> => {
-  const validationFields = LoginFormSchema.safeParse(formData);
+  const validationFields = LoginFormSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
+  });
   if (!validationFields.success) {
     return {
       error: validationFields.error.flatten().fieldErrors,
     };
   }
-  const response = await fetch(`${BACKEND_URL}/auth/signin`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-  if (response.ok) {
+  try {
+    const response = await fetch(`${BACKEND_URL}/auth/signin`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(validationFields.data),
+    });
+
+    console.log("Sign-in response status:", response.status);
+
+    if (!response.ok) {
+      return {
+        message:
+          response.status === 401 ? "Invalid credentials" : response.statusText,
+      };
+    }
+
     const result = await response.json();
-    console.log(result);
+    console.log("Sign-in response data:", result);
+
+    if (!result || !result.id || !result.name || !result.accessToken) {
+      console.error("Invalid response format:", result);
+      return {
+        message: "Server returned incomplete data",
+      };
+    }
+
+    await createSession({
+      user: {
+        id: String(result.id),
+        name: result.name,
+      },
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+    });
+    redirect("/");
+  } catch (error: any) {
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error;
+    }
+
+    console.error("Sign-in error:", error);
+    return {
+      message: "An unexpected error occurred during sign-in",
+    };
   }
-  return {
-    message:
-      response.status === 401 ? "invalid credentials" : response.statusText,
-  };
+
+  return {} as FormState;
 };
