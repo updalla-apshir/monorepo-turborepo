@@ -2,10 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { BACKEND_URL } from "./constants";
-import { SignupFormSchema, FormState, LoginFormSchema } from "./types";
-import { error } from "console";
-import { errorToJSON } from "next/dist/server/render";
-import { createSession } from "./session";
+import { FormState, LoginFormSchema, SignupFormSchema } from "./types";
+import { createSession, updateTokens } from "./session";
 
 export async function signUp(
   state: FormState,
@@ -41,66 +39,83 @@ export async function signUp(
     };
 }
 
-export const signIn = async (
-  formState: FormState,
+export async function signIn(
+  state: FormState,
   formData: FormData
-): Promise<FormState> => {
-  const validationFields = LoginFormSchema.safeParse({
+): Promise<FormState> {
+  const validatedFields = LoginFormSchema.safeParse({
     email: formData.get("email"),
     password: formData.get("password"),
   });
-  if (!validationFields.success) {
+
+  if (!validatedFields.success) {
     return {
-      error: validationFields.error.flatten().fieldErrors,
+      error: validatedFields.error.flatten().fieldErrors,
     };
   }
-  try {
-    const response = await fetch(`${BACKEND_URL}/auth/signin`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(validationFields.data),
-    });
 
-    console.log("Sign-in response status:", response.status);
+  const response = await fetch(`${BACKEND_URL}/auth/signin`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(validatedFields.data),
+  });
 
-    if (!response.ok) {
-      return {
-        message:
-          response.status === 401 ? "Invalid credentials" : response.statusText,
-      };
-    }
-
+  if (response.ok) {
     const result = await response.json();
-    console.log("Sign-in response data:", result);
-
-    if (!result || !result.id || !result.name || !result.accessToken) {
-      console.error("Invalid response format:", result);
-      return {
-        message: "Server returned incomplete data",
-      };
-    }
+    // TODO: Create The Session For Authenticated User.
 
     await createSession({
       user: {
-        id: String(result.id),
+        id: result.id,
         name: result.name,
       },
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
     });
     redirect("/");
-  } catch (error: any) {
-    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
-      throw error;
-    }
-
-    console.error("Sign-in error:", error);
+  } else {
     return {
-      message: "An unexpected error occurred during sign-in",
+      message:
+        response.status === 401 ? "Invalid Credentials!" : response.statusText,
     };
   }
+}
 
-  return {} as FormState;
+export const refreshToken = async (oldRefreshToken: string) => {
+  try {
+    const response = await fetch(`${BACKEND_URL}/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        refresh: oldRefreshToken,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to refresh token" + response.statusText);
+    }
+
+    const { accessToken, refreshToken } = await response.json();
+    // update session with new tokens
+    const updateRes = await fetch("http://localhost:3000/api/auth/update", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json", // ✅ REQUIRED
+      },
+      body: JSON.stringify({
+        accessToken,
+        refreshToken,
+      }),
+    });
+    if (!updateRes.ok) throw new Error("Failed to update the tokens");
+
+    return accessToken;
+  } catch (err) {
+    console.error("Refresh Token failed:", err);
+    return null;
+  }
 };
