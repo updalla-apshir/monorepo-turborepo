@@ -1,6 +1,6 @@
 "use server";
 
-import { authFetch } from "./authOptions";
+import { authFetch } from "./authFetch";
 import { BACKEND_URL } from "./constants";
 
 import { getSession } from "./session";
